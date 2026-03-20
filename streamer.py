@@ -1,6 +1,5 @@
 # ================================
-# STREAMER.PY - Final Fixed
-# pyrogramv2 use karta hai
+# STREAMER.PY - Python 3.11 Fix
 # ================================
 
 import os
@@ -9,8 +8,13 @@ import asyncio
 import threading
 import time
 from flask import Flask, request, Response, jsonify
-from pyrogramv2 import Client
-from pyrogramv2.errors import FloodWait
+
+# ⭐ Event loop pehle set karo
+# Python 3.10+ mein zaroori hai
+asyncio.set_event_loop(asyncio.new_event_loop())
+
+from pyrogram import Client
+from pyrogram.errors import FloodWait
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,9 +23,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Config
-API_ID    = int(os.environ.get("API_ID", "38205081"))
-API_HASH  = os.environ.get("API_HASH", "0ceeb2432d1bd6dd34f48b2a5971d0c3")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8714162717:AAHro-UFaJhw2x-Ne2EU3jCfidZ-BquKlqE")
+API_ID    = int(os.environ.get("API_ID", "0"))
+API_HASH  = os.environ.get("API_HASH", "")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 PORT      = int(os.environ.get("PORT", 8000))
 
 if not API_ID or not API_HASH or not BOT_TOKEN:
@@ -57,7 +61,7 @@ async def setup_client():
             in_memory=True
         )
 
-        logger.info("🔄 Telegram se connect ho raha hai...")
+        logger.info("🔄 Telegram se connect...")
         await pyro.start()
 
         me = await pyro.get_me()
@@ -75,7 +79,7 @@ async def setup_client():
 # ================================
 async def stream_file(file_id, offset=0, limit=None):
     """File chunks yield karo"""
-    chunk_size      = 1024 * 1024  # 1MB
+    chunk_size      = 1024 * 1024
     start_chunk     = offset // chunk_size
     offset_in_chunk = offset % chunk_size
     chunks_done     = 0
@@ -161,7 +165,6 @@ def stream():
     logger.info(f"🎬 Stream: {file_id[:20]}... start={start}")
 
     def generate():
-        """Chunks yield karo"""
         async def get_chunks():
             result = []
             async for chunk in stream_file(
@@ -228,7 +231,6 @@ if __name__ == '__main__':
     )
     t.start()
 
-    # Connect hone ka wait
     logger.info("⏳ Connecting to Telegram...")
     time.sleep(12)
 
