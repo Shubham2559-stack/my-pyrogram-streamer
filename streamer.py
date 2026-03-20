@@ -1,6 +1,6 @@
 # ================================
-# STREAMER.PY - Fixed Version
-# Python 3.14 compatible
+# STREAMER.PY - Final Fixed
+# pyrogramv2 use karta hai
 # ================================
 
 import os
@@ -9,6 +9,8 @@ import asyncio
 import threading
 import time
 from flask import Flask, request, Response, jsonify
+from pyrogramv2 import Client
+from pyrogramv2.errors import FloodWait
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,43 +29,50 @@ if not API_ID or not API_HASH or not BOT_TOKEN:
     exit(1)
 
 logger.info(f"✅ API_ID: {API_ID}")
+logger.info(f"✅ BOT_TOKEN: {BOT_TOKEN[:10]}...")
 
 # Flask
 app = Flask(__name__)
 
-# Global variables
+# Globals
 loop         = None
 pyro         = None
 is_connected = False
 
 # ================================
-# ASYNC SETUP
+# CLIENT SETUP
 # ================================
 async def setup_client():
-    """Pyrogram client banao aur connect karo"""
     global pyro, is_connected
 
-    # Import yahan karo
-    from pyrogram import Client
-
-    pyro = Client(
-        name="streamer",
-        api_id=API_ID,
-        api_hash=API_HASH,
-        bot_token=BOT_TOKEN,
-        no_updates=True,
-        in_memory=True
-    )
-
     try:
+        logger.info("🔄 Pyrogram client banao...")
+
+        pyro = Client(
+            name="streamer_bot",
+            api_id=API_ID,
+            api_hash=API_HASH,
+            bot_token=BOT_TOKEN,
+            no_updates=True,
+            in_memory=True
+        )
+
+        logger.info("🔄 Telegram se connect ho raha hai...")
         await pyro.start()
-        is_connected = True
+
         me = await pyro.get_me()
+        is_connected = True
         logger.info(f"✅ Connected! Bot: @{me.username}")
+
     except Exception as e:
-        logger.error(f"❌ Connect error: {e}")
+        logger.error(f"❌ Connection failed: {e}")
+        import traceback
+        traceback.print_exc()
         is_connected = False
 
+# ================================
+# STREAM GENERATOR
+# ================================
 async def stream_file(file_id, offset=0, limit=None):
     """File chunks yield karo"""
     chunk_size      = 1024 * 1024  # 1MB
@@ -73,8 +82,6 @@ async def stream_file(file_id, offset=0, limit=None):
     bytes_done      = 0
 
     try:
-        from pyrogram.errors import FloodWait
-
         async for chunk in pyro.stream_media(
             file_id,
             offset=start_chunk
@@ -94,6 +101,9 @@ async def stream_file(file_id, offset=0, limit=None):
             if limit is not None and bytes_done >= limit:
                 break
 
+    except FloodWait as e:
+        logger.warning(f"FloodWait: {e.value}s")
+        await asyncio.sleep(e.value)
     except Exception as e:
         logger.error(f"Stream error: {e}")
 
@@ -127,7 +137,10 @@ def stream():
         return jsonify({'error': 'file_id missing'}), 400
 
     if not is_connected:
-        return jsonify({'error': 'Not connected'}), 503
+        return jsonify({
+            'error': 'Not connected',
+            'hint':  'Thoda wait karo'
+        }), 503
 
     # Range header
     range_header = request.headers.get('Range', '')
@@ -145,24 +158,23 @@ def stream():
         except:
             pass
 
-    logger.info(f"Stream: {file_id[:15]}... start={start}")
+    logger.info(f"🎬 Stream: {file_id[:20]}... start={start}")
 
     def generate():
-        """Sync generator"""
+        """Chunks yield karo"""
         async def get_chunks():
-            chunks = []
+            result = []
             async for chunk in stream_file(
                 file_id, start, length
             ):
-                chunks.append(chunk)
-            return chunks
+                result.append(chunk)
+            return result
 
-        # Chunks nikalo
         try:
             future = asyncio.run_coroutine_threadsafe(
                 get_chunks(), loop
             )
-            chunks = future.result(timeout=30)
+            chunks = future.result(timeout=60)
             for chunk in chunks:
                 yield chunk
         except Exception as e:
@@ -191,13 +203,13 @@ def stream():
     )
 
 # ================================
-# BACKGROUND THREAD
+# EVENT LOOP THREAD
 # ================================
 def run_event_loop():
-    """Event loop background mein chalao"""
     global loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    logger.info("🔄 Event loop starting...")
     loop.run_until_complete(setup_client())
     loop.run_forever()
 
@@ -206,17 +218,19 @@ def run_event_loop():
 # ================================
 if __name__ == '__main__':
     logger.info("🚀 Streamer starting...")
+    logger.info(f"API_ID: {API_ID}")
+    logger.info(f"PORT: {PORT}")
 
     # Event loop thread
-    loop_thread = threading.Thread(
+    t = threading.Thread(
         target=run_event_loop,
         daemon=True
     )
-    loop_thread.start()
+    t.start()
 
     # Connect hone ka wait
     logger.info("⏳ Connecting to Telegram...")
-    time.sleep(10)
+    time.sleep(12)
 
     logger.info(f"🌐 Flask on port {PORT}")
     app.run(
