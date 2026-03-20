@@ -23,9 +23,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Config
-API_ID    = int(os.environ.get("API_ID", "0"))
-API_HASH  = os.environ.get("API_HASH", "")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+API_ID    = int(os.environ.get("API_ID", "38205081"))
+API_HASH  = os.environ.get("API_HASH", "0ceeb2432d1bd6dd34f48b2a5971d0c3")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8714162717:AAHro-UFaJhw2x-Ne2EU3jCfidZ-BquKlqE")
 PORT      = int(os.environ.get("PORT", 8000))
 
 if not API_ID or not API_HASH or not BOT_TOKEN:
